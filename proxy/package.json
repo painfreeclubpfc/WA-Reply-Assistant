@@ -1,0 +1,18 @@
+{
+  "name": "pfc-reply-assistant-proxy",
+  "version": "1.0.0",
+  "description": "Key-holding proxy that lets the PFC Reply Assistant extension ask Claude for a reply grounded in the approved answers.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "sync": "node sync.mjs",
+    "postinstall": "node sync.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0"
+  }
+}

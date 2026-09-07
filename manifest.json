@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "PFC Reply Assistant (WhatsApp Web)",
+  "version": "0.1.0",
+  "description": "Suggests Pain Free Club's approved replies while you chat on WhatsApp Web. Drafts only — you always review and press send.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://web.whatsapp.com/*"],
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["matcher.js", "contentScript.js"],
+      "css": ["panel.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["faq.json"],
+      "matches": ["https://web.whatsapp.com/*"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

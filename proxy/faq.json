@@ -1,0 +1,139 @@
+{
+  "_comment": "PFC Reply Assistant knowledge base. Generated from the 'Regular Messages' tab of the Community Nurturing Master SOP. Edit the 'answer' fields here to change what the extension suggests. 'triggers' are lowercase phrases/words that map a member's message to this answer. Set needs_answer=true for entries the team must still approve.",
+  "intents": [
+    {
+      "id": "safety_medical",
+      "category": "Safety",
+      "priority": 100,
+      "triggers": [
+        "swelling", "swollen", "severe pain", "unbearable", "locking", "locked",
+        "gives way", "give way", "can't walk", "cannot walk", "surgery",
+        "replacement", "operation", "mri", "x-ray", "xray", "x ray", "injection",
+        "medicine", "medication", "tablet", "dose", "prescription", "prescribe",
+        "which exercise should i", "is it safe for me to", "diagnose", "my report says"
+      ],
+      "answer": "Thank you for sharing this with us 🙏 For anything related to your specific symptoms, reports, or treatment, we wouldn't want to advise over chat — it's important this is looked at properly. Our team will connect you with the right person from Dr. Manan's side. Could you share your name and the best time to reach you?",
+      "needs_answer": true,
+      "note": "SAFETY: never let the assistant give medical advice. This suggests a safe hand-off. TEAM: approve/adjust the wording."
+    },
+    {
+      "id": "appointment",
+      "category": "Appointment / clinical",
+      "priority": 90,
+      "triggers": [
+        "appointment", "consultation", "consult", "book a call", "book a slot",
+        "meet dr manan", "meet dr. manan", "one on one", "1 on 1", "1:1",
+        "personal consultation", "talk to dr manan", "speak to dr manan", "opd", "clinic visit"
+      ],
+      "answer": "Thank you for your interest in getting Dr. Manan's guidance 🙏\n\nThe best way to get his advice directly is our weekly Inner Circle Call, where Dr. Manan personally answers members' questions. For anything specific, our support team will help you with the right next step.\n\nPlease share:\n• Your full name\n• City\n• What you'd like guidance on\n\nOur team will get back to you shortly. 💙",
+      "needs_answer": false,
+      "note": "Reflects PFC policy: private 1:1 medical consultations are not offered — route to the weekly Inner Circle Call + support team. TEAM: if a paid consultation or clinic option DOES exist, add its process/link here."
+    },
+    {
+      "id": "location",
+      "category": "Logistics",
+      "priority": 80,
+      "triggers": [
+        "where is the clinic", "clinic located", "clinic location", "clinic address",
+        "where is dr manan", "training located", "training location", "address",
+        "where do you sit", "which city", "where is the centre", "where is the center"
+      ],
+      "answer": "Thank you for asking 🙏\n\nMost of Dr. Manan's guidance for members happens online — your live Yoga/Physio sessions, the PFC Community App, and the Inner Circle Call where he answers questions personally.\n\nIf you're looking for an in-person option, please share your city and our team will guide you on what's available. 💙\n\n[TEAM: if you want to share a specific clinic address, map link and timings, paste them here.]",
+      "needs_answer": true,
+      "note": "The real clinic/training address isn't in our records, so I can't fill it — this safe routing reply is a placeholder. TEAM: paste the actual address + map link + timings and set needs_answer to false."
+    },
+    {
+      "id": "recordings",
+      "category": "Access",
+      "priority": 50,
+      "triggers": [
+        "recording", "recordings", "recorded", "recorded session", "missed the session",
+        "missed the class", "missed today", "watch again", "replay", "where can i watch",
+        "how to watch", "past session", "previous session", "yesterday's session"
+      ],
+      "answer": "Hello 😊\nTo watch the recorded sessions, please refer to this short video 👇\n🎥 https://youtube.com/shorts/Y4BwuYZ_pIc\n\nOnce you've downloaded the app:\n➡️ Go to Feed ➡️ Click Courses ➡️ Select Yoga / Physio / Inner Circle Call ➡️ Choose the date\n\nIf you face difficulty, feel free to reach out — we're here to help 😊\nPain Free Club Support Team",
+      "needs_answer": false
+    },
+    {
+      "id": "app_login",
+      "category": "Access",
+      "priority": 50,
+      "triggers": [
+        "download the app", "download app", "how to login", "how to log in", "cant login",
+        "can't login", "unable to login", "app link", "install the app", "play store",
+        "app store", "which app", "login problem"
+      ],
+      "answer": "📱 Apple App Store: https://apps.apple.com/in/app/pfc-community/id6758769658\n📱 Android Play Store: https://play.google.com/store/apps/details?id=com.tagmango.painfreeclub\n\nLog in using your registered mobile number.",
+      "needs_answer": false
+    },
+    {
+      "id": "post_photos",
+      "category": "Access",
+      "priority": 50,
+      "triggers": [
+        "post my photo", "post photo", "upload photo", "share my plate", "today's plate",
+        "how to post", "upload my update", "share update on app", "post on channel"
+      ],
+      "answer": "Hello everyone! 😊\nWe've made a short video explaining how to post your photos on the app. 📸\n🎥 Video: https://youtu.be/fKnmpPAu7Ls\nPlease watch and follow the steps. If you still face issues, let us know. Thank you! 💚",
+      "needs_answer": false
+    },
+    {
+      "id": "session_time",
+      "category": "Schedule",
+      "priority": 40,
+      "triggers": [
+        "what time is the session", "session time", "is the session today", "class today",
+        "session today", "timing of session", "when is the session", "what time today"
+      ],
+      "answer": "Hello [name] ji, the session is today at [time]. 😊",
+      "needs_answer": false,
+      "note": "Human must fill [time] before sending."
+    },
+    {
+      "id": "join_session",
+      "category": "Schedule",
+      "priority": 40,
+      "triggers": [
+        "how do i join", "join the session", "join link", "zoom link", "session link",
+        "how to join yoga", "how to join physio", "link for today"
+      ],
+      "answer": "Reminder: Live [Yoga/Physio] Session at 7:00 AM (Zoom). Please keep a chair and mat handy and set your camera so standing + seated exercises are visible.\n🔗 [paste today's session Zoom link]\nYou can also join through the PFC Community App. Stay strong 💪",
+      "needs_answer": false,
+      "note": "Human must paste today's Zoom link before sending."
+    },
+    {
+      "id": "no_session",
+      "category": "Schedule",
+      "priority": 30,
+      "triggers": [
+        "is there no session", "no session today", "no class today", "session cancelled",
+        "class cancelled", "any session tomorrow", "session tomorrow"
+      ],
+      "answer": "Dear Members, there will be no live session tomorrow. Our Inner Circle Call is scheduled for [day] at [time]. In the meantime, you may access the recorded Yoga or Physiotherapy sessions on your dashboard. Thank you for your understanding. 💙",
+      "needs_answer": false
+    },
+    {
+      "id": "reports_policy",
+      "category": "Clinical / policy",
+      "priority": 100,
+      "triggers": [
+        "can i share my report", "share my x-ray", "share my mri", "posting my report",
+        "sending my report", "attach my report", "share my scan"
+      ],
+      "answer": "Hello! 😊\nAll the information about how to read your X-rays and identify the stage of your knee arthritis or condition will be covered during the webinar.\nTill then, we request you not to share your MRI reports, X-ray reports, or any other medical reports in the WhatsApp group.\nThank you for your understanding! 🙏",
+      "needs_answer": false
+    },
+    {
+      "id": "pricing",
+      "category": "Pricing",
+      "priority": 50,
+      "triggers": [
+        "how much", "cost", "price", "fees", "fee", "charges", "what's included",
+        "what is included", "program cost", "how to join", "enrolment", "enrollment"
+      ],
+      "answer": "What you get?\n✔️ Lifetime Inner Circle calls with Dr. Manan Vora\n✔️ 2 Yoga + 2 Physio Sessions/week (1 full year)\n✔️ Food guidance\n✔️ 21-day Knee Reset Challenge\n✔️ Full access to all recordings & courses\n👉 Join: https://member.painfreeclub.in/l/0581743fc4",
+      "needs_answer": false,
+      "note": "Verify the current price/link in knowledge/business/offers.md before relying on this."
+    }
+  ]
+}

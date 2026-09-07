@@ -1,0 +1,93 @@
+/* PFC Reply Assistant — floating card. Deliberately compact and unobtrusive. */
+#pfc-assistant-card {
+  position: fixed;
+  right: 20px;
+  bottom: 96px;
+  width: 360px;
+  max-width: calc(100vw - 40px);
+  background: #ffffff;
+  color: #1f2d3a;
+  border: 1px solid #d7e0e6;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 13px;
+  z-index: 2147483000;
+  overflow: hidden;
+}
+#pfc-assistant-card .pfc-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #1f3b57;
+  color: #fff;
+}
+#pfc-assistant-card .pfc-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #2ecc71; flex: 0 0 auto;
+}
+#pfc-assistant-card .pfc-title { font-weight: 600; }
+#pfc-assistant-card .pfc-cat {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.85;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+#pfc-assistant-card .pfc-x {
+  background: transparent; border: 0; color: #fff;
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px;
+}
+#pfc-assistant-card .pfc-meta {
+  padding: 8px 12px 0;
+  color: #6b7a87;
+  font-size: 11px;
+}
+#pfc-assistant-card .pfc-warn {
+  margin: 8px 12px 0;
+  padding: 6px 8px;
+  background: #fff6cc;
+  border: 1px solid #e6cf6b;
+  border-radius: 8px;
+  color: #6b5600;
+  font-size: 11.5px;
+}
+#pfc-assistant-card .pfc-text {
+  width: calc(100% - 24px);
+  margin: 8px 12px;
+  border: 1px solid #d7e0e6;
+  border-radius: 8px;
+  padding: 8px;
+  font: inherit;
+  color: #1f2d3a;
+  resize: vertical;
+  box-sizing: border-box;
+}
+#pfc-assistant-card .pfc-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 10px;
+  flex-wrap: wrap;
+}
+#pfc-assistant-card .pfc-btn {
+  border: 1px solid #cdd8df;
+  background: #f2f5f7;
+  color: #1f2d3a;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+#pfc-assistant-card .pfc-btn:hover { background: #e9eef1; }
+#pfc-assistant-card .pfc-primary {
+  background: #1f3b57; border-color: #1f3b57; color: #fff; font-weight: 600;
+}
+#pfc-assistant-card .pfc-primary:hover { background: #17324b; }
+#pfc-assistant-card .pfc-ghost { opacity: 0.55; cursor: not-allowed; }
+#pfc-assistant-card .pfc-foot {
+  padding: 0 12px 10px;
+  color: #9aa7b1;
+  font-size: 10.5px;
+}
