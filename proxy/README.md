@@ -28,7 +28,7 @@ Then in the extension **Options**: tick *Enable AI compose*, set Proxy URL to
 `http://localhost:8787`, Save, reload the WhatsApp Web tab.
 
 ## Deploy on Railway (reuses your existing Railway account)
-1. **New Project → Deploy from GitHub repo** → pick `painfreeclubpfc/WA-Reply-Assitant`
+1. **New Project → Deploy from GitHub repo** → pick `painfreeclubpfc/WA-Reply-Assistant`
    (branch `main`).
 2. Open the service → **Settings → Root Directory** and set it to:
    `proxy`
