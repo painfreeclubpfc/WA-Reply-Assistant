@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PFC Reply Assistant
 // @namespace    pfc.painfreeclub
-// @version      0.3.0
+// @version      0.3.1
 // @description  Writes Pain Free Club replies on WhatsApp Web — approved answers + an AI brain for anything else. Drafts only; you review & press send. Draggable, hideable button.
 // @match        https://web.whatsapp.com/*
 // @run-at       document-idle
@@ -359,29 +359,38 @@
   }
   if(GM_getValue("pfc_btn_hidden",false))wrap.style.display="none";
 
-  // drag vs click
+  // drag vs click — tracked on document so movement never stops when the cursor
+  // leaves the small button (pointer-capture can fail silently inside WhatsApp).
   let dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0;
-  btn.addEventListener("pointerdown",(e)=>{
-    dragging=true;moved=false;sx=e.clientX;sy=e.clientY;
+  function pt(e){return e.touches&&e.touches[0]?e.touches[0]:e;}
+  function onDown(e){
+    if(e.target===hideBtn)return;      // ✕ handles its own click
+    const p=pt(e);dragging=true;moved=false;sx=p.clientX;sy=p.clientY;
     const r=wrap.getBoundingClientRect();ox=r.left;oy=r.top;
-    try{btn.setPointerCapture(e.pointerId);}catch(_){}
-  });
-  btn.addEventListener("pointermove",(e)=>{
+    e.preventDefault();
+  }
+  function onMove(e){
     if(!dragging)return;
-    const dx=e.clientX-sx,dy=e.clientY-sy;
+    const p=pt(e),dx=p.clientX-sx,dy=p.clientY-sy;
     if(Math.abs(dx)+Math.abs(dy)>5)moved=true;
     if(moved){
-      let nx=Math.max(4,Math.min(window.innerWidth-wrap.offsetWidth-4,ox+dx));
-      let ny=Math.max(4,Math.min(window.innerHeight-wrap.offsetHeight-4,oy+dy));
+      const nx=Math.max(4,Math.min(window.innerWidth-wrap.offsetWidth-4,ox+dx));
+      const ny=Math.max(4,Math.min(window.innerHeight-wrap.offsetHeight-4,oy+dy));
       wrap.style.left=nx+"px";wrap.style.top=ny+"px";wrap.style.right="auto";wrap.style.bottom="auto";
+      e.preventDefault();
     }
-  });
-  btn.addEventListener("pointerup",(e)=>{
+  }
+  function onUp(){
     if(!dragging)return;dragging=false;
-    try{btn.releasePointerCapture(e.pointerId);}catch(_){}
     if(moved){const r=wrap.getBoundingClientRect();GM_setValue("pfc_btn_pos",{left:r.left,top:r.top});}
     else{generate(true);}
-  });
+  }
+  btn.addEventListener("mousedown",onDown);
+  btn.addEventListener("touchstart",onDown,{passive:false});
+  document.addEventListener("mousemove",onMove);
+  document.addEventListener("touchmove",onMove,{passive:false});
+  document.addEventListener("mouseup",onUp);
+  document.addEventListener("touchend",onUp);
 
   // best-effort auto-suggest when a new incoming message arrives
   let timer=null;
