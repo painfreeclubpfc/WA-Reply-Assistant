@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PFC Reply Assistant
 // @namespace    pfc.painfreeclub
-// @version      0.2.1
-// @description  Writes Pain Free Club replies on WhatsApp Web — approved answers + an AI brain for anything else. Drafts only; you review & press send.
+// @version      0.3.0
+// @description  Writes Pain Free Club replies on WhatsApp Web — approved answers + an AI brain for anything else. Drafts only; you review & press send. Draggable, hideable button.
 // @match        https://web.whatsapp.com/*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
@@ -50,10 +50,15 @@
   // ---- styles -------------------------------------------------------------
   const st = document.createElement("style");
   st.textContent = `
-    #${BTN_ID}{position:fixed;right:20px;bottom:20px;z-index:2147483000;background:#1f3b57;color:#fff;
+    #pfc-launch-wrap{position:fixed;right:20px;bottom:20px;z-index:2147483000}
+    #${BTN_ID}{background:#1f3b57;color:#fff;
       border:0;border-radius:999px;padding:10px 14px;font:600 13px -apple-system,"Segoe UI",Roboto,Arial;
-      box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer}
+      box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:grab;touch-action:none;user-select:none}
     #${BTN_ID}:hover{background:#17324b}
+    #${BTN_ID}:active{cursor:grabbing}
+    #pfc-launch-hide{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;
+      border:0;background:#c0392b;color:#fff;font:600 11px -apple-system,"Segoe UI",Roboto,Arial;
+      line-height:1;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center}
     #${CARD_ID}{position:fixed;right:20px;bottom:70px;width:370px;max-width:calc(100vw - 40px);background:#fff;color:#1f2d3a;
       border:1px solid #d7e0e6;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.18);
       font:13px -apple-system,"Segoe UI",Roboto,Arial;z-index:2147483000;overflow:hidden}
@@ -196,10 +201,49 @@
     else if(!local){ setStatus("No saved answer. Turn on AI (menu → PFC: set AI proxy URL) to auto-write a reply, or type one."); }
   }
 
-  // launcher button (always available — click to (re)generate for the open chat)
-  const btn=el("button",null,"💬 PFC");btn.id=BTN_ID;btn.title="Suggest a reply for this chat";
-  btn.onclick=()=>generate(true);
-  document.body.appendChild(btn);
+  // launcher button — draggable (drag to move, position remembered), click for a
+  // reply, ✕ to hide (bring back from the Tampermonkey menu).
+  const wrap=el("div");wrap.id="pfc-launch-wrap";
+  const btn=el("button",null,"💬 PFC");btn.id=BTN_ID;btn.title="Drag to move · click for a reply";
+  const hideBtn=el("button",null,"✕");hideBtn.id="pfc-launch-hide";hideBtn.title="Hide (bring back: Tampermonkey menu → PFC: show button)";
+  wrap.appendChild(btn);wrap.appendChild(hideBtn);
+  document.body.appendChild(wrap);
+
+  function showLauncher(){wrap.style.display="";GM_setValue("pfc_btn_hidden",false);}
+  function hideLauncher(){wrap.style.display="none";GM_setValue("pfc_btn_hidden",true);}
+  hideBtn.onclick=(e)=>{e.stopPropagation();hideLauncher();};
+  GM_registerMenuCommand("PFC: show button", showLauncher);
+
+  // restore saved position + hidden state
+  const savedPos=GM_getValue("pfc_btn_pos",null);
+  if(savedPos&&typeof savedPos.left==="number"){
+    wrap.style.left=savedPos.left+"px";wrap.style.top=savedPos.top+"px";wrap.style.right="auto";wrap.style.bottom="auto";
+  }
+  if(GM_getValue("pfc_btn_hidden",false))wrap.style.display="none";
+
+  // drag vs click
+  let dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0;
+  btn.addEventListener("pointerdown",(e)=>{
+    dragging=true;moved=false;sx=e.clientX;sy=e.clientY;
+    const r=wrap.getBoundingClientRect();ox=r.left;oy=r.top;
+    try{btn.setPointerCapture(e.pointerId);}catch(_){}
+  });
+  btn.addEventListener("pointermove",(e)=>{
+    if(!dragging)return;
+    const dx=e.clientX-sx,dy=e.clientY-sy;
+    if(Math.abs(dx)+Math.abs(dy)>5)moved=true;
+    if(moved){
+      let nx=Math.max(4,Math.min(window.innerWidth-wrap.offsetWidth-4,ox+dx));
+      let ny=Math.max(4,Math.min(window.innerHeight-wrap.offsetHeight-4,oy+dy));
+      wrap.style.left=nx+"px";wrap.style.top=ny+"px";wrap.style.right="auto";wrap.style.bottom="auto";
+    }
+  });
+  btn.addEventListener("pointerup",(e)=>{
+    if(!dragging)return;dragging=false;
+    try{btn.releasePointerCapture(e.pointerId);}catch(_){}
+    if(moved){const r=wrap.getBoundingClientRect();GM_setValue("pfc_btn_pos",{left:r.left,top:r.top});}
+    else{generate(true);}
+  });
 
   // best-effort auto-suggest when a new incoming message arrives
   let timer=null;
