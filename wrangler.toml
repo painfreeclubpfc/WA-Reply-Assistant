@@ -1,0 +1,9 @@
+# Cloudflare Worker config — enables auto-deploy from GitHub (Workers Builds).
+# Connect this repo once in the Cloudflare dashboard (Workers → pf-reply →
+# Settings → Build → Connect GitHub), set the build command to
+# `node worker/build.mjs`, and every push to main redeploys the Worker
+# automatically. The ANTHROPIC_API_KEY secret is set once in the dashboard and
+# persists across deploys.
+name = "pf-reply"
+main = "dist/pfc-worker.js"
+compatibility_date = "2024-11-01"

@@ -1,0 +1,12 @@
+{
+  "name": "pfc-wa-reply-assistant",
+  "version": "0.5.0",
+  "private": true,
+  "description": "PFC WhatsApp Reply Assistant — thin-client userscript + Cloudflare Worker backend (Bruno's brain, approved answers, content library).",
+  "type": "module",
+  "scripts": {
+    "build": "node worker/build.mjs && node build-userscript.mjs",
+    "build:worker": "node worker/build.mjs",
+    "build:userscript": "node build-userscript.mjs"
+  }
+}

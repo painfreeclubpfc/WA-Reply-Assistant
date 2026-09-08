@@ -12,18 +12,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
+// Thin client: only proxy placeholders are substituted — no content is baked in
+// (the script fetches faq/library/AI from the Worker at runtime).
 const tpl = readFileSync(join(root, "pfc-reply-assistant.user.js"), "utf8");
-const faq = readFileSync(join(root, "faq.json"), "utf8").trim();
-const library = readFileSync(join(root, "library.json"), "utf8").trim();
 
 let out = tpl
   .replaceAll("__PROXY_BASE__/pfc-reply-assistant.user.js", "REPLACE_WITH_YOUR_GIST_RAW_URL")
   .replaceAll('"__PROXY_BASE__"', '""')
-  .replaceAll("__PROXY_HOST__", "*")
-  .replace("__FAQ_JSON__", () => faq)
-  .replace("__LIBRARY_JSON__", () => library);
+  .replaceAll("__PROXY_HOST__", "*");
 
-for (const ph of ["__PROXY_BASE__", "__PROXY_HOST__", "__FAQ_JSON__", "__LIBRARY_JSON__"]) {
+for (const ph of ["__PROXY_BASE__", "__PROXY_HOST__"]) {
   if (out.includes(ph)) throw new Error(`placeholder ${ph} left unreplaced — check the template`);
 }
 

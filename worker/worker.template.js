@@ -5,13 +5,16 @@
  * giving medical advice. The userscript calls POST /compose; a human still
  * reviews and sends.
  *
- * This file is a TEMPLATE: __FAQ_JSON__ is replaced with faq.json and __BRAIN__
- * with pfc-brain.md at build time (see worker/build.mjs).
- * Deploy the built dist/pfc-worker.js in the Cloudflare dashboard and add the
- * ANTHROPIC_API_KEY variable. See worker/README.md.
+ * This file is a TEMPLATE: __FAQ_JSON__, __BRAIN__ and __LIBRARY_JSON__ are
+ * replaced with faq.json, pfc-brain.md and library.json at build time (see
+ * worker/build.mjs). This Worker is the single backend: it serves the AI brain
+ * (POST /compose), the approved answers (GET /faq) and the content library
+ * (GET /library). The userscript is a thin client that fetches all of this
+ * live, so content changes only ever happen here.
  */
 const FAQ = __FAQ_JSON__;
 const PFC_BRAIN = __BRAIN__;
+const LIBRARY = __LIBRARY_JSON__;
 
 const ANSWER_BANK = (FAQ.intents || [])
   .map((i) => `- (${i.category}) ${i.id}: ${i.answer || "[no approved text — route to team]"}`)
@@ -82,7 +85,7 @@ export default {
     const origin = env.ALLOWED_ORIGIN || "https://web.whatsapp.com";
     const cors = {
       "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, x-pfc-key",
       "Vary": "Origin",
     };
@@ -96,8 +99,12 @@ export default {
 
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
-      return json({ ok: true, ai: !!env.ANTHROPIC_API_KEY });
+      return json({ ok: true, ai: !!env.ANTHROPIC_API_KEY, faq: (FAQ.intents || []).length, library: (LIBRARY.groups || []).reduce((n, g) => n + (g.items || []).length, 0) });
     }
+    // Thin-client content endpoints — the userscript fetches these live so it
+    // never needs re-pasting when content changes.
+    if (request.method === "GET" && url.pathname === "/faq") return json(FAQ);
+    if (request.method === "GET" && url.pathname === "/library") return json(LIBRARY);
     if (request.method === "POST" && url.pathname === "/compose") {
       if (env.SHARED_SECRET && request.headers.get("x-pfc-key") !== env.SHARED_SECRET) {
         return json({ error: "unauthorized" }, 401);

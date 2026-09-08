@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PFC Reply Assistant
 // @namespace    pfc.painfreeclub
-// @version      0.4.0
-// @description  Bruno on WhatsApp Web — command-first reply drafts (approved + AI) plus a searchable Library of PFC polls, challenges and messages. Drafts only; you review & press send.
+// @version      0.5.0
+// @description  Bruno on WhatsApp Web — thin client for the PFC backend. AI-first reply drafts + a searchable Library of PFC polls/challenges/messages, all fetched live from the Worker (no content baked in). Drafts only; you review & press send.
 // @match        https://web.whatsapp.com/*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
@@ -18,18 +18,17 @@
   if (window.__pfcAssistantLoaded) return;
   window.__pfcAssistantLoaded = true;
 
+  // Thin client: NO content is baked in. Everything (AI replies, the library,
+  // the approved answers) comes live from the Worker backend. Update content in
+  // the backend and it appears here automatically — this script rarely changes.
   let PROXY_BASE = "__PROXY_BASE__";
-  const FAQ = __FAQ_JSON__;
-  const LIBRARY = __LIBRARY_JSON__;
-
-  const SETTINGS = {
-    minScore: 1,
-    sharedSecret: GM_getValue("pfc_secret", ""),
-  };
+  const SETTINGS = { sharedSecret: GM_getValue("pfc_secret", "") };
+  let LIBRARY = null;           // fetched from /library on first Library open
+  let libLoading = false;
 
   // ---- menu ---------------------------------------------------------------
   GM_registerMenuCommand("PFC: set AI proxy URL", () => {
-    const v = prompt("AI proxy URL (Cloudflare Worker). Blank = no AI:", PROXY_BASE || "");
+    const v = prompt("Backend URL (Cloudflare Worker). Blank = off:", PROXY_BASE || "");
     if (v !== null) { PROXY_BASE = v.trim().replace(/\/+$/, ""); GM_setValue("pfc_proxy_url", PROXY_BASE); alert("Saved. Reload WhatsApp Web."); }
   });
   GM_registerMenuCommand("PFC: set shared secret (optional)", () => {
@@ -41,15 +40,18 @@
   // ---- helpers ------------------------------------------------------------
   function el(tag, cls, txt){ const e=document.createElement(tag); if(cls)e.className=cls; if(txt!=null)e.textContent=txt; return e; }
   function normalize(s){ return (s||"").toLowerCase().replace(/[‘’ʼ]/g,"'").replace(/[^a-z0-9'\s]/g," ").replace(/\s+/g," ").trim(); }
-
-  // ---- matcher (approved answers) ----------------------------------------
-  function match(text){
-    const p=" "+normalize(text)+" "; const m=[];
-    for(const it of FAQ.intents||[]){ let sc=0; for(const t of it.triggers||[]){ const n=normalize(t); if(n&&p.indexOf(" "+n+" ")!==-1)sc+=n.split(" ").filter(Boolean).length; } if(sc>=(SETTINGS.minScore||1))m.push({intent:it,score:sc}); }
-    if(!m.length)return null;
-    const pr=m.filter(x=>(x.intent.priority||0)>=90).sort((a,b)=>(b.intent.priority||0)-(a.intent.priority||0)||b.score-a.score);
-    if(pr.length)return pr[0];
-    m.sort((a,b)=>b.score-a.score||(b.intent.priority||0)-(a.intent.priority||0)); return m[0];
+  function apiHeaders(extra){ const h=Object.assign({},extra||{}); if(SETTINGS.sharedSecret)h["x-pfc-key"]=SETTINGS.sharedSecret; return h; }
+  function getJSON(path){
+    return new Promise((resolve,reject)=>{
+      GM_xmlhttpRequest({method:"GET",url:PROXY_BASE+path,headers:apiHeaders(),timeout:20000,
+        onload:r=>{try{resolve(JSON.parse(r.responseText));}catch(e){reject(e);}},onerror:()=>reject(new Error("network")),ontimeout:()=>reject(new Error("timeout"))});
+    });
+  }
+  function composeWithAI(message){
+    return new Promise((resolve,reject)=>{
+      GM_xmlhttpRequest({method:"POST",url:PROXY_BASE+"/compose",headers:apiHeaders({"Content-Type":"application/json"}),data:JSON.stringify({message}),timeout:25000,
+        onload:r=>{try{resolve(JSON.parse(r.responseText));}catch(e){reject(e);}},onerror:()=>reject(new Error("network")),ontimeout:()=>reject(new Error("timeout"))});
+    });
   }
 
   // ---- read chat ----------------------------------------------------------
@@ -80,15 +82,6 @@
     try{ document.execCommand("insertText",false,text); return true; }catch(_){ return false; }
   }
 
-  // ---- AI -----------------------------------------------------------------
-  function composeWithAI(message){
-    return new Promise((resolve,reject)=>{
-      const headers={"Content-Type":"application/json"}; if(SETTINGS.sharedSecret)headers["x-pfc-key"]=SETTINGS.sharedSecret;
-      GM_xmlhttpRequest({method:"POST",url:PROXY_BASE+"/compose",headers,data:JSON.stringify({message}),timeout:25000,
-        onload:r=>{try{resolve(JSON.parse(r.responseText));}catch(e){reject(e);}},onerror:()=>reject(new Error("network")),ontimeout:()=>reject(new Error("timeout"))});
-    });
-  }
-
   // ---- styles -------------------------------------------------------------
   const NAVY="#0F3D56", ORANGE="#F59E0B";
   const st=document.createElement("style");
@@ -97,20 +90,20 @@
       background:#fff;color:#1f2d3a;border:1px solid #d7e0e6;border-radius:12px;
       box-shadow:0 10px 30px rgba(0,0,0,.22);font:13px -apple-system,"Segoe UI",Roboto,Arial;
       z-index:2147483000;overflow:hidden}
-    #pfc-panel.collapsed .p-body{display:none}
+    #pfc-panel.collapsed .p-body,#pfc-panel.collapsed .p-foot{display:none}
     #pfc-panel .p-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:${NAVY};color:#fff;cursor:grab;user-select:none;touch-action:none}
     #pfc-panel .p-head:active{cursor:grabbing}
     #pfc-panel .p-title{font-weight:700;letter-spacing:.2px}
     #pfc-panel .p-spacer{flex:1}
     #pfc-panel .p-icon{background:rgba(255,255,255,.16);border:0;color:#fff;width:24px;height:24px;border-radius:6px;font-size:15px;line-height:1;cursor:pointer}
     #pfc-panel .p-icon:hover{background:rgba(255,255,255,.28)}
-    #pfc-panel .p-tabs{display:flex;gap:0;border-bottom:1px solid #e6edf1}
+    #pfc-panel .p-tabs{display:flex;border-bottom:1px solid #e6edf1}
     #pfc-panel .p-tab{flex:1;background:#f6f8fa;border:0;border-bottom:2px solid transparent;padding:9px;font:inherit;font-weight:600;color:#5b6b78;cursor:pointer}
     #pfc-panel .p-tab.on{background:#fff;color:${NAVY};border-bottom-color:${ORANGE}}
     #pfc-panel .p-pane{padding:10px 12px}
     #pfc-panel .p-detected{color:#6b7a87;font-size:11px;margin-bottom:4px}
     #pfc-panel .p-status{color:${NAVY};font-size:11.5px;min-height:15px;margin-bottom:6px}
-    #pfc-panel textarea.p-ta{width:100%;box-sizing:border-box;min-height:96px;border:1px solid #d7e0e6;border-radius:8px;padding:8px;font:inherit;color:#1f2d3a;resize:vertical}
+    #pfc-panel textarea.p-ta{width:100%;box-sizing:border-box;min-height:104px;border:1px solid #d7e0e6;border-radius:8px;padding:8px;font:inherit;color:#1f2d3a;resize:vertical}
     #pfc-panel .p-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
     #pfc-panel .p-btn{border:1px solid #cdd8df;background:#f2f5f7;color:#1f2d3a;border-radius:8px;padding:7px 10px;font:inherit;cursor:pointer}
     #pfc-panel .p-btn:hover{background:#e9eef1}
@@ -148,20 +141,18 @@
   const tabLib=el("button","p-tab","📋 Library");
   tabs.append(tabReply,tabLib);
 
-  // Reply pane
   const rPane=el("div","p-pane");
-  const detected=el("div","p-detected","Open a chat, then click “Read chat”.");
+  const detected=el("div","p-detected","Open a chat, then click “Read & draft”.");
   const status=el("div","p-status","");
-  const ta=el("textarea","p-ta"); ta.placeholder="Your draft appears here — edit freely, then Insert.";
+  const ta=el("textarea","p-ta"); ta.placeholder="Bruno's draft appears here — edit freely, then Insert.";
   const rAct=el("div","p-actions");
-  const bRead=el("button","p-btn","↻ Read chat");
-  const bAI=el("button","p-btn","✍️ Write with AI");
+  const bRead=el("button","p-btn primary","✍️ Read & draft");
+  const bRegen=el("button","p-btn","↻ Regenerate");
   const bIns=el("button","p-btn primary","Insert");
   const bCopy=el("button","p-btn","Copy");
-  rAct.append(bRead,bAI,bIns,bCopy);
+  rAct.append(bRead,bRegen,bIns,bCopy);
   rPane.append(detected,status,ta,rAct);
 
-  // Library pane
   const lPane=el("div","p-pane"); lPane.style.display="none";
   const search=el("input","p-search"); search.type="search"; search.placeholder="Search polls, challenges, messages…";
   const list=el("div","p-list");
@@ -177,7 +168,7 @@
   function toast(msg){
     if(!toastEl){toastEl=el("div");toastEl.id="pfc-toast";document.body.appendChild(toastEl);}
     toastEl.textContent=msg; toastEl.classList.add("show");
-    clearTimeout(toastT); toastT=setTimeout(()=>toastEl.classList.remove("show"),1800);
+    clearTimeout(toastT); toastT=setTimeout(()=>toastEl.classList.remove("show"),1900);
   }
 
   // ---- state persistence --------------------------------------------------
@@ -185,7 +176,6 @@
   if(pos&&typeof pos.left==="number"){ panel.style.left=pos.left+"px"; panel.style.top=pos.top+"px"; panel.style.right="auto"; panel.style.bottom="auto"; }
   if(GM_getValue("pfc_collapsed",false)) panel.classList.add("collapsed");
   if(GM_getValue("pfc_hidden",false)) panel.style.display="none";
-
   minBtn.onclick=(e)=>{ e.stopPropagation(); panel.classList.toggle("collapsed"); GM_setValue("pfc_collapsed",panel.classList.contains("collapsed")); };
   hideBtn.onclick=(e)=>{ e.stopPropagation(); panel.style.display="none"; GM_setValue("pfc_hidden",true); };
   GM_registerMenuCommand("PFC: show assistant", ()=>{ panel.style.display=""; GM_setValue("pfc_hidden",false); });
@@ -195,39 +185,44 @@
     const lib=which==="library";
     tabReply.classList.toggle("on",!lib); tabLib.classList.toggle("on",lib);
     rPane.style.display=lib?"none":""; lPane.style.display=lib?"":"none";
-    if(lib&&!list.childElementCount) buildList();
+    if(lib) ensureLibrary();
   }
   tabReply.onclick=()=>setTab("reply");
   tabLib.onclick=()=>setTab("library");
 
-  // ---- reply actions ------------------------------------------------------
+  // ---- reply (AI-first) ---------------------------------------------------
   let lastIncoming="";
-  function readChat(){
-    const incoming=getLatestIncoming();
-    lastIncoming=incoming;
-    detected.textContent = "Detected: " + (incoming ? (incoming.length>110?incoming.slice(0,109)+"…":incoming) : "(couldn't read a message — open a chat)");
-    if(!incoming){ status.textContent=""; return; }
-    const m=match(incoming);
-    if(m&&m.intent.answer){ ta.value=m.intent.answer; status.textContent = m.intent.needs_answer ? "⚠ Approved answer — check the [TEAM] note before sending." : "Approved answer ready."; }
-    else { ta.value=""; status.textContent = PROXY_BASE ? "No saved answer — click “Write with AI”." : "No saved answer. Turn on AI (menu → PFC: set AI proxy URL) or type a reply."; }
-  }
-  bRead.onclick=readChat;
-  bAI.onclick=async()=>{
-    const incoming=lastIncoming||getLatestIncoming();
-    if(!incoming){ readChat(); return; }
-    if(!PROXY_BASE){ status.textContent="AI is off — set the proxy URL in the Tampermonkey menu."; return; }
-    status.textContent="✍️ Writing a reply…";
+  async function draft(incoming){
+    if(!PROXY_BASE){ status.textContent="Backend not set — Tampermonkey menu → PFC: set AI proxy URL."; return; }
+    status.textContent="✍️ Bruno is writing…";
     try{
       const out=await composeWithAI(incoming);
       if(out&&out.reply) ta.value=out.reply;
       else if(out&&out.escalate) ta.value="Thank you for reaching out 🙏 Let me get the right person from our team to help you. Could you share your name and the best time to reach you?";
-      status.textContent = out&&out.needs_review ? "⚠ AI draft — review carefully before sending." : "AI draft ready.";
-    }catch(e){ status.textContent="AI failed — check the proxy URL (menu). "+(e&&e.message||""); }
-  };
-  bIns.onclick=()=>{ if(!ta.value.trim()){toast("Nothing to insert");return;} if(!composeBox()){toast("Open a chat first");return;} if(insertText(ta.value)){toast("Inserted ✓ — review & press send");} else toast("Couldn't insert — use Copy"); };
+      else if(out&&out.error) { status.textContent="Backend: "+out.error; return; }
+      status.textContent = out&&out.needs_review ? "⚠ Review carefully before sending." : "Draft ready — edit if needed.";
+    }catch(e){ status.textContent="Couldn't reach the backend — check the URL (menu). "+(e&&e.message||""); }
+  }
+  function readAndDraft(){
+    const incoming=getLatestIncoming(); lastIncoming=incoming;
+    detected.textContent="Detected: "+(incoming?(incoming.length>110?incoming.slice(0,109)+"…":incoming):"(couldn't read a message — open a chat)");
+    if(!incoming){ status.textContent=""; return; }
+    draft(incoming);
+  }
+  bRead.onclick=readAndDraft;
+  bRegen.onclick=()=>{ const inc=lastIncoming||getLatestIncoming(); if(inc)draft(inc); else readAndDraft(); };
+  bIns.onclick=()=>{ if(!ta.value.trim()){toast("Nothing to insert");return;} if(!composeBox()){toast("Open a chat first");return;} if(insertText(ta.value))toast("Inserted ✓ — review & press send"); else toast("Couldn't insert — use Copy"); };
   bCopy.onclick=async()=>{ try{ await navigator.clipboard.writeText(ta.value); toast("Copied ✓"); }catch(_){ toast("Copy failed"); } };
 
-  // ---- library ------------------------------------------------------------
+  // ---- library (fetched live) --------------------------------------------
+  async function ensureLibrary(){
+    if(LIBRARY||libLoading) { if(LIBRARY&&!list.childElementCount) buildList(); return; }
+    if(!PROXY_BASE){ list.innerHTML=""; list.appendChild(el("div","p-empty","Backend not set — Tampermonkey menu → PFC: set AI proxy URL.")); return; }
+    libLoading=true; list.innerHTML=""; list.appendChild(el("div","p-empty","Loading library…"));
+    try{ LIBRARY=await getJSON("/library"); buildList(); }
+    catch(e){ list.innerHTML=""; list.appendChild(el("div","p-empty","Couldn't load library. "+(e&&e.message||""))); }
+    finally{ libLoading=false; }
+  }
   function itemFullText(it){ return it.link ? it.text+"\n"+it.link : it.text; }
   function badgeClass(t){ t=(t||"").toLowerCase(); if(t.indexOf("poll")===0)return "p-badge poll"; if(t.indexOf("reply")===0)return "p-badge reply"; return "p-badge"; }
   function insertItem(it){
@@ -238,9 +233,8 @@
   function toReplyEditor(it){ ta.value=itemFullText(it); setTab("reply"); status.textContent="From Library — edit if needed, then Insert."; detected.textContent="Library item: "+(it.title||it.type); }
   function buildList(){
     list.innerHTML="";
-    const q=normalize(search.value);
-    let shown=0;
-    for(const g of LIBRARY.groups||[]){
+    const q=normalize(search.value); let shown=0;
+    for(const g of (LIBRARY&&LIBRARY.groups)||[]){
       const matches=(g.items||[]).filter(it=> !q || normalize(g.name+" "+(it.title||"")+" "+it.text+" "+(it.type||"")+" "+(it.section||"")).indexOf(q)!==-1);
       if(!matches.length) continue;
       list.appendChild(el("div","p-group",g.name+" ("+matches.length+")"));
@@ -261,24 +255,11 @@
   let searchT=null;
   search.addEventListener("input",()=>{ clearTimeout(searchT); searchT=setTimeout(buildList,150); });
 
-  // ---- drag the panel by its header (document-level; reliable) ------------
+  // ---- drag by header -----------------------------------------------------
   let dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0;
   function pt(e){ return e.touches&&e.touches[0]?e.touches[0]:e; }
-  function onDown(e){
-    if(e.target===minBtn||e.target===hideBtn) return;
-    const p=pt(e); dragging=true; moved=false; sx=p.clientX; sy=p.clientY;
-    const r=panel.getBoundingClientRect(); ox=r.left; oy=r.top; e.preventDefault();
-  }
-  function onMove(e){
-    if(!dragging)return;
-    const p=pt(e),dx=p.clientX-sx,dy=p.clientY-sy;
-    if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
-    if(moved){
-      const nx=Math.max(4,Math.min(window.innerWidth-panel.offsetWidth-4,ox+dx));
-      const ny=Math.max(4,Math.min(window.innerHeight-40,oy+dy));
-      panel.style.left=nx+"px"; panel.style.top=ny+"px"; panel.style.right="auto"; panel.style.bottom="auto"; e.preventDefault();
-    }
-  }
+  function onDown(e){ if(e.target===minBtn||e.target===hideBtn)return; const p=pt(e); dragging=true; moved=false; sx=p.clientX; sy=p.clientY; const r=panel.getBoundingClientRect(); ox=r.left; oy=r.top; e.preventDefault(); }
+  function onMove(e){ if(!dragging)return; const p=pt(e),dx=p.clientX-sx,dy=p.clientY-sy; if(Math.abs(dx)+Math.abs(dy)>4)moved=true; if(moved){ const nx=Math.max(4,Math.min(window.innerWidth-panel.offsetWidth-4,ox+dx)); const ny=Math.max(4,Math.min(window.innerHeight-40,oy+dy)); panel.style.left=nx+"px"; panel.style.top=ny+"px"; panel.style.right="auto"; panel.style.bottom="auto"; e.preventDefault(); } }
   function onUp(){ if(!dragging)return; dragging=false; if(moved){ const r=panel.getBoundingClientRect(); GM_setValue("pfc_pos",{left:r.left,top:r.top}); } }
   head.addEventListener("mousedown",onDown);
   head.addEventListener("touchstart",onDown,{passive:false});
@@ -286,7 +267,4 @@
   document.addEventListener("touchmove",onMove,{passive:false});
   document.addEventListener("mouseup",onUp);
   document.addEventListener("touchend",onUp);
-
-  // first read when a chat is already open
-  setTimeout(()=>{ if(composeBox()) readChat(); }, 800);
 })();
